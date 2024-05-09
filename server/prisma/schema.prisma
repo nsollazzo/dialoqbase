@@ -18,6 +18,7 @@ model Bot {
   description                 String?
   createdAt                   DateTime         @default(now())
   temperature                 Float            @default(0.7)
+  noOfDocumentsToRetrieve     Int?             @default(4)
   model                       String           @default("gpt-3.5-turbo")
   provider                    String           @default("openai")
   embedding                   String           @default("openai")
@@ -70,21 +71,32 @@ model BotDocument {
 }
 
 model User {
-  user_id         Int      @id @default(autoincrement())
-  username        String   @unique
+  user_id         Int          @id @default(autoincrement())
+  username        String       @unique
   password        String
-  email           String?  @unique
-  isFirstLogin    Boolean  @default(true)
-  isAdministrator Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  email           String?      @unique
+  isFirstLogin    Boolean      @default(true)
+  isAdministrator Boolean      @default(false)
+  createdAt       DateTime     @default(now())
   bots            Bot[]
+  apiKeys         UserApiKey[]
 }
 
 model DialoqbaseSettings {
-  id                    Int     @id @default(autoincrement())
-  noOfBotsPerUser       Int     @default(10)
-  allowUserToCreateBots Boolean @default(true)
-  allowUserToRegister   Boolean @default(false)
+  id                           Int      @id @default(autoincrement())
+  noOfBotsPerUser              Int      @default(10)
+  allowUserToCreateBots        Boolean  @default(true)
+  allowUserToRegister          Boolean  @default(false)
+  numberOfDocuments            Int      @default(10)
+  legacyMode                   Boolean  @default(false)
+  hidePlayground               Boolean  @default(false)
+  defaultChunkSize             Int?     @default(1000)
+  defaultChunkOverlap          Int?     @default(200)
+  dynamicallyFetchOllamaModels Boolean? @default(false)
+  hideDefaultModels            Boolean? @default(false)
+  defaultChatModel             String   @default("gpt-3.5-turbo-dbase")
+  defaultEmbeddingModel        String   @default("dialoqbase_eb_text-embedding-ada-002")
+  ollamaURL                   String? @default("http://host.docker.internal:11434")
 }
 
 model BotIntegration {
@@ -110,20 +122,22 @@ model BotIntegration {
 }
 
 model BotTelegramHistory {
-  id          Int     @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   chat_id     Int?
   new_chat_id String?
   identifier  String?
   human       String?
   bot         String?
+  createdAt   DateTime? @default(now())
 }
 
 model BotDiscordHistory {
-  id         Int     @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   chat_id    String?
   identifier String?
   human      String?
   bot        String?
+  createdAt  DateTime? @default(now())
 }
 
 model BotAppearance {
@@ -134,6 +148,10 @@ model BotAppearance {
   background_color        String?
   chat_bot_bubble_style   Json?   @db.Json
   chat_human_bubble_style Json?   @db.Json
+  tts                     Boolean @default(false)
+  tts_voice               String?
+  tts_provider            String?
+  tts_model               String?
   Bot                     Bot     @relation(fields: [bot_id], references: [id], onDelete: Cascade)
 }
 
@@ -158,12 +176,14 @@ model BotPlaygroundMessage {
 }
 
 model BotWhatsappHistory {
-  id         Int     @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   chat_id    String?
   from       String?
   identifier String?
+  bot_id     String?
   human      String?
   bot        String?
+  createdAt  DateTime? @default(now())
 }
 
 model botWebHistory {
@@ -189,4 +209,30 @@ model DialoqbaseModels {
   hide             Boolean  @default(false)
   deleted          Boolean  @default(false)
   createdAt        DateTime @default(now())
+}
+
+model BotApiHistory {
+  id        Int       @id @default(autoincrement())
+  api_key   String
+  bot_id    String?
+  human     String?
+  bot       String?
+  createdAt DateTime? @default(now())
+}
+
+model UserApiKey {
+  id        Int      @id @default(autoincrement())
+  name      String
+  api_key   String
+  user_id   Int
+  User      User     @relation(fields: [user_id], references: [user_id])
+  createdAt DateTime @default(now())
+}
+
+model DbSettings {
+  id        Int      @id @default(autoincrement())
+  key       String
+  value     String
+  family    String
+  createdAt DateTime @default(now())
 }

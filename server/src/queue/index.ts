@@ -1,4 +1,3 @@
-import { DoneCallback, Job } from "bull";
 import { PrismaClient } from "@prisma/client";
 import { QSource } from "./type";
 import { pdfQueueController } from "./controllers/pdf.controller";
@@ -14,16 +13,19 @@ import { videoQueueController } from "./controllers/video.controller";
 import { youtubeQueueController } from "./controllers/youtube.controller";
 import { restQueueController } from "./controllers/rest.controller";
 import { sitemapQueueController } from "./controllers/sitemap.controller";
+import { SandboxedJob } from "bullmq";
+import { getRagSettings } from "../utils/rag-settings";
 
 const prisma = new PrismaClient();
 
-export default async function queueHandler(job: Job, done: DoneCallback) {
+export default async function queueHandler(job: SandboxedJob) {
   const data = job.data as QSource[];
   await prisma.$connect();
   console.log("Processing queue");
   try {
-    for (const source of data) {
+    for (const sourceData of data) {
       try {
+        let source = sourceData;
         await prisma.botSource.update({
           where: {
             id: source.id,
@@ -32,66 +34,47 @@ export default async function queueHandler(job: Job, done: DoneCallback) {
             status: "PROCESSING",
           },
         });
+        const { chunkOverlap, chunkSize } = await getRagSettings(prisma);
+        source.chunkOverlap = chunkOverlap;
+        source.chunkSize = chunkSize;
         switch (source.type.toLowerCase()) {
           case "website":
-            await websiteQueueController(
-              source,
-            );
+            await websiteQueueController(source, prisma);
             break;
           case "text":
-            await textQueueController(
-              source,
-            );
+            await textQueueController(source, prisma);
             break;
           case "pdf":
-            await pdfQueueController(
-              source,
-            );
+            await pdfQueueController(source, prisma);
             break;
           case "crawl":
-            await crawlQueueController(
-              source,
-            );
+            await crawlQueueController(source);
             break;
 
           case "docx":
-            await DocxQueueController(
-              source,
-            );
+            await DocxQueueController(source, prisma);
             break;
 
           case "csv":
-            await csvQueueController(
-              source,
-            );
+            await csvQueueController(source, prisma);
             break;
           case "github":
-            await githubQueueController(
-              source,
-            );
+            await githubQueueController(source, prisma);
             break;
           case "txt":
-            await txtQueueController(
-              source,
-            );
+            await txtQueueController(source, prisma);
             break;
           case "mp3":
-            await audioQueueController(
-              source,
-            );
+            await audioQueueController(source, prisma);
             break;
           case "mp4":
-            await videoQueueController(
-              source,
-            );
+            await videoQueueController(source, prisma);
             break;
           case "youtube":
-            await youtubeQueueController(
-              source,
-            );
+            await youtubeQueueController(source, prisma);
             break;
           case "rest":
-            await restQueueController(source);
+            await restQueueController(source, prisma);
             break;
           case "sitemap":
             await sitemapQueueController(source);
@@ -110,13 +93,12 @@ export default async function queueHandler(job: Job, done: DoneCallback) {
           },
         });
 
-        done();
         await prisma.$disconnect();
       } catch (e) {
         console.log(e);
         await prisma.botSource.update({
           where: {
-            id: source.id,
+            id: sourceData.id,
           },
           data: {
             status: "FAILED",
@@ -124,10 +106,11 @@ export default async function queueHandler(job: Job, done: DoneCallback) {
           },
         });
         await prisma.$disconnect();
-        done();
       }
     }
   } catch (e) {
     console.log(e);
   }
+
+  return Promise.resolve();
 }

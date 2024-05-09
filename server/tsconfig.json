@@ -5,10 +5,12 @@
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
     "checkJs": false,
+    "strict": false
   },
   "include": ["src/**/*.ts"],
   "exclude": [
     "node_modules",
-    "uploads/**/*"
+    "uploads/**/*",
+    "dist/**/*",
   ],
 }

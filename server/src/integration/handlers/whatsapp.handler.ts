@@ -2,9 +2,10 @@ import { PrismaClient } from "@prisma/client";
 import { embeddings } from "../../utils/embeddings";
 import { DialoqbaseVectorStore } from "../../utils/store";
 import { chatModelProvider } from "../../utils/models";
-import { BaseRetriever } from "langchain/schema/retriever";
+import { BaseRetriever } from "@langchain/core/retrievers";
 import { DialoqbaseHybridRetrival } from "../../utils/hybrid";
 import { createChain } from "../../chain";
+import { getModelInfo } from "../../utils/get-model-info";
 const prisma = new PrismaClient();
 
 export const whatsappBotHandler = async (
@@ -55,7 +56,21 @@ export const whatsappBotHandler = async (
     const temperature = bot.temperature;
 
     const sanitizedQuestion = message.trim().replaceAll("\n", " ");
-    const embeddingModel = embeddings(bot.embedding);
+    const embeddingInfo = await getModelInfo({
+      model: bot.embedding,
+      prisma,
+      type: "embedding",
+    });
+
+    if (!embeddingInfo) {
+      return "Opps! Embedding not found";
+    }
+
+    const embeddingModel = embeddings(
+      embeddingInfo.model_provider!.toLowerCase(),
+      embeddingInfo.model_id,
+      embeddingInfo?.config
+    );
 
     let retriever: BaseRetriever;
 
@@ -76,12 +91,10 @@ export const whatsappBotHandler = async (
       retriever = vectorstore.asRetriever({});
     }
 
-    const modelinfo = await prisma.dialoqbaseModels.findFirst({
-      where: {
-        model_id: bot.model,
-        hide: false,
-        deleted: false,
-      },
+    const modelinfo = await getModelInfo({
+      model: bot.model,
+      prisma,
+      type: "chat",
     });
 
     if (!modelinfo) {
@@ -121,6 +134,7 @@ export const whatsappBotHandler = async (
         from: from,
         human: message,
         bot: response,
+        bot_id: bot_id,
       },
     });
 

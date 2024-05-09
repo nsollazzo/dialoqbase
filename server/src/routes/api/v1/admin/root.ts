@@ -9,22 +9,26 @@ import {
   getAllModelsHandler,
   saveModelFromInputedUrlHandler,
   deleteModelHandler,
-  hideModelHandler
-} from "./handlers";
+  hideModelHandler,
+  saveEmbedddingModelFromInputedUrlHandler,
+  updateDialoqbaseRAGSettingsHandler
+} from "../../../../handlers/api/v1/admin";
 import {
   dialoqbaseSettingsSchema,
   updateDialoqbaseSettingsSchema,
   getAllUsersSchema,
   registerUserByAdminSchema,
   resetUserPasswordByAdminSchema,
-} from "./schema";
+  updateDialoqbaseRAGSettings
+} from "../../../../schema/api/v1/admin";
 
 import {
   fetchModelFromInputedUrlSchema,
   getAllModelsSchema,
   saveModelFromInputedUrlSchema,
-  toogleModelSchema
-} from "./schema/model";
+  toogleModelSchema,
+  saveEmbeddingModelSchema,
+} from "../../../../schema/api/v1/admin/model";
 
 const root: FastifyPluginAsync = async (fastify, _): Promise<void> => {
   fastify.get(
@@ -43,6 +47,15 @@ const root: FastifyPluginAsync = async (fastify, _): Promise<void> => {
       onRequest: [fastify.authenticate],
     },
     updateDialoqbaseSettingsHandler
+  );
+
+  fastify.post(
+    "/rag-settings",
+    {
+      schema: updateDialoqbaseRAGSettings,
+      onRequest: [fastify.authenticate],
+    },
+    updateDialoqbaseRAGSettingsHandler
   );
 
   fastify.get(
@@ -117,6 +130,15 @@ const root: FastifyPluginAsync = async (fastify, _): Promise<void> => {
       onRequest: [fastify.authenticate],
     },
     hideModelHandler
+  );
+
+  fastify.post(
+    "/models/embedding",
+    {
+      schema: saveEmbeddingModelSchema,
+      onRequest: [fastify.authenticate],
+    },
+    saveEmbedddingModelFromInputedUrlHandler
   );
 };
 
